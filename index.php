@@ -185,10 +185,7 @@ require_once __DIR__ . '/includes/header.php';
 
         <div class="card card-custom mt-3 bg-light border-0">
             <div class="card-body p-3">
-                <h6 class="fw-bold mb-2"><i class="bi bi-info-circle me-1"></i> System Information:</h6>
                 <ul class="small text-muted mb-0 ps-3">
-                    <li>Database: <strong>MITDQL</strong> | Table: <strong>studinfo</strong></li>
-                    <li>Fields: <code>Name</code>, <code>IdNumber</code>, <code>Course</code>, <code>Year</code>, <code>Subject</code>, <code>Image</code>, <code>Grade</code></li>
                     <li>Admin can manage all student records; Students can view their record, upload their photo, and edit their Name only.</li>
                 </ul>
             </div>
