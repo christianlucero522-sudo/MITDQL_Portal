@@ -162,7 +162,7 @@ require_once __DIR__ . '/includes/header.php';
                                     <span class="input-group-text"><i class="bi bi-person-badge-fill"></i></span>
                                     <input type="text" name="username" class="form-control" placeholder="e.g. admin" required value="<?= htmlspecialchars($_POST['username'] ?? '') ?>">
                                 </div>
-                                <small class="text-muted">Default username: <code>admin</code></small>
+                    
                             </div>
 
                             <div class="mb-3">
@@ -171,7 +171,7 @@ require_once __DIR__ . '/includes/header.php';
                                     <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
                                     <input type="password" name="password" class="form-control" placeholder="Enter admin password" required>
                                 </div>
-                                <small class="text-muted">Default password: <code>admin123</code></small>
+                           
                             </div>
 
                             <button type="submit" class="btn btn-dark w-100 py-2 fw-semibold mt-2">
