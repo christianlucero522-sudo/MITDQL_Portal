@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($checkStmt->fetch()) {
                 $error = "Another student with ID Number '" . htmlspecialchars($idNumber) . "' already exists.";
             } else {
-                $imageFilename = $student['Image'];
+                $imageFilename = !empty($student['Image']) ? $student['Image'] : DEFAULT_AVATAR;
 
                 // Handle image upload if provided
                 if (isset($_FILES['student_image']) && $_FILES['student_image']['error'] !== UPLOAD_ERR_NO_FILE) {
@@ -61,28 +61,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $mimeType = finfo_file($finfo, $file['tmp_name']);
                         finfo_close($finfo);
 
-                        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-                        $allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
-
-                        if (!in_array($mimeType, $allowedMimes) || !in_array($ext, $allowedExts)) {
+                        if (!in_array($mimeType, $allowedMimes)) {
                             $error = "Invalid image type. Allowed: JPG, PNG, WEBP, GIF.";
                         } else {
-                            $uploadDir = __DIR__ . '/../uploads/';
-                            if (!is_dir($uploadDir)) {
-                                mkdir($uploadDir, 0755, true);
-                            }
-                            $imageFilename = 'stud_' . preg_replace('/[^a-zA-Z0-9_-]/', '', $idNumber) . '_' . time() . '.' . $ext;
-                            if (move_uploaded_file($file['tmp_name'], $uploadDir . $imageFilename)) {
-                                // Delete old file if custom
-                                if ($student['Image'] && $student['Image'] !== 'default_avatar.svg' && $student['Image'] !== 'default_avatar.png') {
-                                    $oldPath = $uploadDir . $student['Image'];
-                                    if (file_exists($oldPath)) {
-                                        @unlink($oldPath);
-                                    }
-                                }
-                            } else {
-                                $error = "Could not save uploaded photo.";
-                            }
+                            // Store as Data URI (persists in MySQL and compatible with Vercel's read-only serverless filesystem)
+                            $imgData = file_get_contents($file['tmp_name']);
+                            $imageFilename = 'data:' . $mimeType . ';base64,' . base64_encode($imgData);
                         }
                     }
                 }
@@ -114,10 +98,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$imageFile = !empty($student['Image']) ? $student['Image'] : 'default_avatar.svg';
-$imagePath = $basePath . 'uploads/' . htmlspecialchars($imageFile);
-if (!file_exists(__DIR__ . '/../uploads/' . $imageFile)) {
-    $imagePath = $basePath . 'uploads/default_avatar.svg';
+// Display avatar preview
+$imageDisplay = !empty($student['Image']) ? $student['Image'] : DEFAULT_AVATAR;
+if (strpos($imageDisplay, 'data:') !== 0 && strpos($imageDisplay, 'http') !== 0) {
+    if (file_exists(__DIR__ . '/../uploads/' . $imageDisplay)) {
+        $imageDisplay = $basePath . 'uploads/' . htmlspecialchars($imageDisplay);
+    } else {
+        $imageDisplay = DEFAULT_AVATAR;
+    }
 }
 
 $pageTitle = 'Edit Student - ' . htmlspecialchars($student['Name']);
@@ -154,7 +142,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
 
                     <div class="d-flex align-items-center gap-3 mb-4 p-3 bg-light rounded-3">
-                        <img src="<?= $imagePath ?>" alt="Current Avatar" class="student-avatar-sm" style="width: 64px; height: 64px;">
+                        <img src="<?= $imageDisplay ?>" alt="Current Avatar" class="student-avatar-sm" style="width: 64px; height: 64px;">
                         <div>
                             <div class="fw-semibold">Current Photo</div>
                             <small class="text-muted">Upload a new file below if you want to replace it.</small>
@@ -202,7 +190,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <div class="mb-3">
                         <label class="form-label fw-bold">Replace Photo (Image)</label>
                         <input type="file" name="student_image" class="form-control" accept="image/png, image/jpeg, image/webp, image/gif">
-                        <div class="form-text">Leave empty to keep existing photo. Formats: JPG, PNG, WEBP, GIF.</div>
+                        <div class="form-text">Leave empty to keep existing photo. Formats: JPG, PNG, WEBP, GIF (Max 3MB).</div>
                     </div>
 
                     <div class="mb-4">

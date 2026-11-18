@@ -41,10 +41,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($checkStmt->fetch()) {
                 $error = "A student with ID Number '" . htmlspecialchars($idNumber) . "' already exists.";
             } else {
-                // If password empty, default to IdNumber
                 $plainPassword = !empty($password) ? $password : $idNumber;
                 $hashedPassword = password_hash($plainPassword, PASSWORD_BCRYPT);
-                $imageFilename = 'default_avatar.svg';
+                $imageFilename = DEFAULT_AVATAR;
 
                 // Check for image upload
                 if (isset($_FILES['student_image']) && $_FILES['student_image']['error'] !== UPLOAD_ERR_NO_FILE) {
@@ -59,20 +58,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $mimeType = finfo_file($finfo, $file['tmp_name']);
                         finfo_close($finfo);
 
-                        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-                        $allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
-
-                        if (!in_array($mimeType, $allowedMimes) || !in_array($ext, $allowedExts)) {
+                        if (!in_array($mimeType, $allowedMimes)) {
                             $error = "Invalid file type. Allowed formats: JPG, PNG, WEBP, GIF.";
                         } else {
-                            $uploadDir = __DIR__ . '/../uploads/';
-                            if (!is_dir($uploadDir)) {
-                                mkdir($uploadDir, 0755, true);
-                            }
-                            $imageFilename = 'stud_' . preg_replace('/[^a-zA-Z0-9_-]/', '', $idNumber) . '_' . time() . '.' . $ext;
-                            if (!move_uploaded_file($file['tmp_name'], $uploadDir . $imageFilename)) {
-                                $error = "Could not save uploaded image.";
-                            }
+                            // Store as Data URI (persists in MySQL and compatible with Vercel's read-only serverless filesystem)
+                            $imgData = file_get_contents($file['tmp_name']);
+                            $imageFilename = 'data:' . $mimeType . ';base64,' . base64_encode($imgData);
                         }
                     }
                 }
@@ -178,7 +169,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <div class="mb-3">
                         <label class="form-label fw-bold">Student Photo (Image)</label>
                         <input type="file" name="student_image" class="form-control" accept="image/png, image/jpeg, image/webp, image/gif">
-                        <div class="form-text">Optional. If omitted, default avatar SVG will be used. Formats: JPG, PNG, WEBP, GIF.</div>
+                        <div class="form-text">Optional. Formats: JPG, PNG, WEBP, GIF (Max 3MB).</div>
                     </div>
 
                     <div class="mb-4">

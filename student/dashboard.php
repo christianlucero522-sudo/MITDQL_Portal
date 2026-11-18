@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$currentStudent) {
                 $error = "Student account not found.";
             } else {
-                $newImageFilename = $currentStudent['Image'];
+                $newImageFilename = !empty($currentStudent['Image']) ? $currentStudent['Image'] : DEFAULT_AVATAR;
 
                 // Check if new photo was uploaded
                 if (isset($_FILES['student_image']) && $_FILES['student_image']['error'] !== UPLOAD_ERR_NO_FILE) {
@@ -37,43 +37,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     if ($file['error'] !== UPLOAD_ERR_OK) {
                         $error = "File upload failed with error code: " . $file['error'];
+                    } elseif ($file['size'] > 3 * 1024 * 1024) {
+                        $error = "Image size must be 3MB or less.";
                     } else {
-                        // Max 3MB
-                        if ($file['size'] > 3 * 1024 * 1024) {
-                            $error = "Image size must be 3MB or less.";
+                        $allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+                        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                        $mimeType = finfo_file($finfo, $file['tmp_name']);
+                        finfo_close($finfo);
+
+                        if (!in_array($mimeType, $allowedMimes)) {
+                            $error = "Invalid file type. Only JPG, PNG, WEBP, and GIF images are permitted.";
                         } else {
-                            $allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-                            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-                            $mimeType = finfo_file($finfo, $file['tmp_name']);
-                            finfo_close($finfo);
-
-                            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-                            $allowedExts = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
-
-                            if (!in_array($mimeType, $allowedMimes) || !in_array($ext, $allowedExts)) {
-                                $error = "Invalid file type. Only JPG, PNG, WEBP, and GIF images are permitted.";
-                            } else {
-                                $uploadDir = __DIR__ . '/../uploads/';
-                                if (!is_dir($uploadDir)) {
-                                    mkdir($uploadDir, 0755, true);
-                                }
-
-                                $newImageFilename = 'stud_' . $studentId . '_' . time() . '.' . $ext;
-                                $targetFilePath = $uploadDir . $newImageFilename;
-
-                                if (move_uploaded_file($file['tmp_name'], $targetFilePath)) {
-                                    // Remove old image if not default avatar
-                                    $oldImage = $currentStudent['Image'];
-                                    if ($oldImage && $oldImage !== 'default_avatar.svg' && $oldImage !== 'default_avatar.png') {
-                                        $oldPath = $uploadDir . $oldImage;
-                                        if (file_exists($oldPath)) {
-                                            @unlink($oldPath);
-                                        }
-                                    }
-                                } else {
-                                    $error = "Failed to save uploaded photo to server.";
-                                }
-                            }
+                            // Store as Data URI (persists in MySQL and compatible with Vercel's read-only serverless filesystem)
+                            $imgData = file_get_contents($file['tmp_name']);
+                            $newImageFilename = 'data:' . $mimeType . ';base64,' . base64_encode($imgData);
                         }
                     }
                 }
@@ -102,10 +79,13 @@ if (!$student) {
 }
 
 // Determine image path
-$imageFile = !empty($student['Image']) ? $student['Image'] : 'default_avatar.svg';
-$imagePath = $basePath . 'uploads/' . htmlspecialchars($imageFile);
-if (!file_exists(__DIR__ . '/../uploads/' . $imageFile)) {
-    $imagePath = $basePath . 'uploads/default_avatar.svg';
+$imagePath = !empty($student['Image']) ? $student['Image'] : DEFAULT_AVATAR;
+if (strpos($imagePath, 'data:') !== 0 && strpos($imagePath, 'http') !== 0) {
+    if (file_exists(__DIR__ . '/../uploads/' . $imagePath)) {
+        $imagePath = $basePath . 'uploads/' . htmlspecialchars($imagePath);
+    } else {
+        $imagePath = DEFAULT_AVATAR;
+    }
 }
 
 $pageTitle = 'Student Portal';

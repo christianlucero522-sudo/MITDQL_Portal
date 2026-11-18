@@ -22,7 +22,6 @@ if (!empty($search)) {
     $students = $stmt->fetchAll();
 }
 
-// Quick stats
 $totalStudents = count($students);
 
 $pageTitle = 'Admin Dashboard';
@@ -92,10 +91,13 @@ require_once __DIR__ . '/../includes/header.php';
                     </thead>
                     <tbody>
                         <?php foreach ($students as $stud): 
-                            $img = !empty($stud['Image']) ? $stud['Image'] : 'default_avatar.svg';
-                            $imgSrc = $basePath . 'uploads/' . htmlspecialchars($img);
-                            if (!file_exists(__DIR__ . '/../uploads/' . $img)) {
-                                $imgSrc = $basePath . 'uploads/default_avatar.svg';
+                            $imgSrc = !empty($stud['Image']) ? $stud['Image'] : DEFAULT_AVATAR;
+                            if (strpos($imgSrc, 'data:') !== 0 && strpos($imgSrc, 'http') !== 0) {
+                                if (file_exists(__DIR__ . '/../uploads/' . $imgSrc)) {
+                                    $imgSrc = $basePath . 'uploads/' . htmlspecialchars($imgSrc);
+                                } else {
+                                    $imgSrc = DEFAULT_AVATAR;
+                                }
                             }
                         ?>
                             <tr>
@@ -126,7 +128,7 @@ require_once __DIR__ . '/../includes/header.php';
                                         <a href="delete_student.php?id=<?= $stud['id'] ?>&csrf_token=<?= generateCsrfToken() ?>" 
                                            class="btn btn-outline-danger" 
                                            title="Delete Student"
-                                           onclick="return confirm('Are you sure you want to delete student <?= htmlspecialchars(addslashes($stud['Name'])) ?> (ID: <?= htmlspecialchars(addslashes($stud['IdNumber'])) ?>)? This action cannot be undone.');">
+                                           onclick="return confirm('Are you sure you want to delete student <?= htmlspecialchars(addslashes($stud['Name'])) ?> (ID: <?= htmlspecialchars(addslashes($stud['IdNumber'])) ?>)?');">
                                             <i class="bi bi-trash-fill"></i>
                                         </a>
                                     </div>

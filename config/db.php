@@ -11,6 +11,9 @@ define('DB_PASS', getenv('DB_PASS') !== false ? getenv('DB_PASS') : '');
 define('DB_NAME', getenv('DB_NAME') ?: 'MITDQL');
 define('DB_PORT', getenv('DB_PORT') ?: '3306');
 
+// Standalone inline default avatar (works seamlessly on serverless / Vercel without disk access)
+define('DEFAULT_AVATAR', 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjggMTI4IiB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIHJ4PSI2NCIgZmlsbD0iI2UyZThmMCIvPjxjaXJjbGUgY3g9IjY0IiBjeT0iNDYiIHI9IjI0IiBmaWxsPSIjOTRhM2I4Ii8+PHBhdGggZD0iTTI0IDExMmMwLTIyLjA5IDE3LjkxLTQwIDQwLTQwczQwIDE3LjkxIDQwIDQwIiBmaWxsPSIjOTRhM2I4Ii8+PC9zdmc+');
+
 function getPDO(): PDO {
     static $pdo = null;
 
@@ -54,12 +57,17 @@ function autoMigrateTables(PDO $pdo): void {
             `Course` VARCHAR(100) NOT NULL,
             `Year` VARCHAR(20) NOT NULL,
             `Subject` VARCHAR(150) NOT NULL,
-            `Image` VARCHAR(255) DEFAULT 'default_avatar.svg',
+            `Image` MEDIUMTEXT NULL,
             `Grade` VARCHAR(10) NOT NULL,
             `Password` VARCHAR(255) NOT NULL,
             `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     ");
+
+    // Upgrade Image column to MEDIUMTEXT if it was previously created as VARCHAR
+    try {
+        $pdo->exec("ALTER TABLE `studinfo` MODIFY COLUMN `Image` MEDIUMTEXT NULL");
+    } catch (Exception $e) {}
 
     // Create admins table
     $pdo->exec("
