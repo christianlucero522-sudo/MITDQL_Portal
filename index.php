@@ -133,7 +133,7 @@ require_once __DIR__ . '/includes/header.php';
                                     <span class="input-group-text"><i class="bi bi-card-heading"></i></span>
                                     <input type="text" name="id_number" class="form-control" placeholder="e.g. 2026-0001" required value="<?= htmlspecialchars($_POST['id_number'] ?? '') ?>">
                                 </div>
-                                <small class="text-muted">Default demo student ID: <code>2026-0001</code></small>
+                                <small class="text-muted">Enter student ID: <code>2026-0001</code></small>
                             </div>
 
                             <div class="mb-3">
@@ -142,7 +142,7 @@ require_once __DIR__ . '/includes/header.php';
                                     <span class="input-group-text"><i class="bi bi-key-fill"></i></span>
                                     <input type="password" name="password" class="form-control" placeholder="Enter your password" required>
                                 </div>
-                                <small class="text-muted">Default demo password: <code>password123</code></small>
+                                <small class="text-muted">Enter password: <code>password123</code></small>
                             </div>
 
                             <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold mt-2">
