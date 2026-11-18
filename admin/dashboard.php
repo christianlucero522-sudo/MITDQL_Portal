@@ -84,8 +84,8 @@ require_once __DIR__ . '/../includes/header.php';
                             <th>Student Name</th>
                             <th>Course</th>
                             <th>Year</th>
-                            <th>Subject</th>
-                            <th>Grade</th>
+                            <th>Enrolled Subjects</th>
+                            <th>Grades</th>
                             <th class="text-end pe-4">Actions</th>
                         </tr>
                     </thead>
@@ -99,6 +99,7 @@ require_once __DIR__ . '/../includes/header.php';
                                     $imgSrc = DEFAULT_AVATAR;
                                 }
                             }
+                            $subList = parseSubjectsAndGrades($stud['Subject'], $stud['Grade']);
                         ?>
                             <tr>
                                 <td class="ps-4">
@@ -114,11 +115,21 @@ require_once __DIR__ . '/../includes/header.php';
                                 </td>
                                 <td><?= htmlspecialchars($stud['Course']) ?></td>
                                 <td><?= htmlspecialchars($stud['Year']) ?></td>
-                                <td><?= htmlspecialchars($stud['Subject']) ?></td>
                                 <td>
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
-                                        <?= htmlspecialchars($stud['Grade']) ?>
-                                    </span>
+                                    <?php foreach ($subList as $sItem): ?>
+                                        <div class="small text-truncate" style="max-width: 200px;">
+                                            <i class="bi bi-book text-muted me-1"></i><?= htmlspecialchars($sItem['subject']) ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </td>
+                                <td>
+                                    <?php foreach ($subList as $sItem): ?>
+                                        <div class="mb-1">
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0" style="font-size: 0.8rem;">
+                                                <?= htmlspecialchars($sItem['grade']) ?>
+                                            </span>
+                                        </div>
+                                    <?php endforeach; ?>
                                 </td>
                                 <td class="text-end pe-4">
                                     <div class="btn-group btn-group-sm">

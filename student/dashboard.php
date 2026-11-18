@@ -48,7 +48,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if (!in_array($mimeType, $allowedMimes)) {
                             $error = "Invalid file type. Only JPG, PNG, WEBP, and GIF images are permitted.";
                         } else {
-                            // Store as Data URI (persists in MySQL and compatible with Vercel's read-only serverless filesystem)
                             $imgData = file_get_contents($file['tmp_name']);
                             $newImageFilename = 'data:' . $mimeType . ';base64,' . base64_encode($imgData);
                         }
@@ -88,6 +87,20 @@ if (strpos($imagePath, 'data:') !== 0 && strpos($imagePath, 'http') !== 0) {
     }
 }
 
+// Parse multiple subjects and grades
+$studentSubjects = parseSubjectsAndGrades($student['Subject'], $student['Grade']);
+
+// Calculate average grade if numeric
+$gradeSum = 0;
+$gradeCount = 0;
+foreach ($studentSubjects as $pair) {
+    if (is_numeric($pair['grade'])) {
+        $gradeSum += (float)$pair['grade'];
+        $gradeCount++;
+    }
+}
+$averageGrade = $gradeCount > 0 ? number_format($gradeSum / $gradeCount, 2) : 'N/A';
+
 $pageTitle = 'Student Portal';
 $csrfToken = generateCsrfToken();
 require_once __DIR__ . '/../includes/header.php';
@@ -98,7 +111,7 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="d-flex align-items-center justify-content-between mb-4">
             <div>
                 <h3 class="fw-bold mb-1">Student Account</h3>
-                <p class="text-muted mb-0">View your academic details, upload your photo, and update your name.</p>
+                <p class="text-muted mb-0">View all your enrolled subjects, grades, and manage your profile.</p>
             </div>
             <span class="badge bg-primary px-3 py-2 fs-6">
                 <i class="bi bi-person-badge me-1"></i> ID: <?= htmlspecialchars($student['IdNumber']) ?>
@@ -121,11 +134,12 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
         <?php endif; ?>
 
+        <!-- Student Profile Card (Edit Name & Upload Photo Only) -->
         <div class="card card-custom mb-4">
             <div class="card-header card-header-custom d-flex align-items-center justify-content-between">
-                <span><i class="bi bi-person-lines-fill me-2 text-primary"></i>Profile Information</span>
+                <span><i class="bi bi-person-lines-fill me-2 text-primary"></i>Profile Details</span>
                 <span class="badge bg-light text-dark border">
-                    <i class="bi bi-lock me-1"></i> Academic details locked by Administrator
+                    <i class="bi bi-shield-check text-success me-1"></i> Student Access
                 </span>
             </div>
             <div class="card-body p-4">
@@ -148,14 +162,10 @@ require_once __DIR__ . '/../includes/header.php';
                         </div>
                     </div>
 
-                    <hr class="my-4">
-
-                    <h6 class="fw-bold mb-3 text-secondary">
-                        <i class="bi bi-pencil-square me-1"></i> Editable Field:
-                    </h6>
-
-                    <div class="mb-4">
-                        <label class="form-label fw-bold">Full Name <span class="text-danger">*</span></label>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-primary">
+                            <i class="bi bi-pencil-square me-1"></i> Full Name (Editable by Student) <span class="text-danger">*</span>
+                        </label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="bi bi-person"></i></span>
                             <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($student['Name']) ?>" required>
@@ -163,45 +173,87 @@ require_once __DIR__ . '/../includes/header.php';
                         <div class="form-text text-muted">Per institution policy, students are permitted to update their Name only.</div>
                     </div>
 
-                    <h6 class="fw-bold mb-3 text-secondary">
-                        <i class="bi bi-lock-fill me-1"></i> Academic Records (Read-Only):
-                    </h6>
-
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-6">
-                            <label class="form-label small text-muted fw-semibold">ID Number</label>
-                            <input type="text" class="form-control field-locked" value="<?= htmlspecialchars($student['IdNumber']) ?>" readonly>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small text-muted fw-semibold">Course / Degree</label>
-                            <input type="text" class="form-control field-locked" value="<?= htmlspecialchars($student['Course']) ?>" readonly>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small text-muted fw-semibold">Year Level</label>
-                            <input type="text" class="form-control field-locked" value="<?= htmlspecialchars($student['Year']) ?>" readonly>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small text-muted fw-semibold">Enrolled Subject</label>
-                            <input type="text" class="form-control field-locked" value="<?= htmlspecialchars($student['Subject']) ?>" readonly>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label small text-muted fw-semibold">Current Grade</label>
-                            <div>
-                                <span class="badge bg-success-subtle text-success border border-success-subtle badge-grade">
-                                    <i class="bi bi-award-fill me-1"></i> <?= htmlspecialchars($student['Grade']) ?>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="d-flex justify-content-end">
-                        <button type="submit" class="btn btn-primary px-4 py-2 fw-semibold">
+                        <button type="submit" class="btn btn-primary px-4 fw-semibold">
                             <i class="bi bi-check-lg me-1"></i> Save Changes (Name & Photo)
                         </button>
                     </div>
                 </form>
             </div>
         </div>
+
+        <!-- Academic Information Card (Locked/Read-Only with Multiple Subjects & Grades) -->
+        <div class="card card-custom mb-4">
+            <div class="card-header card-header-custom d-flex align-items-center justify-content-between">
+                <span><i class="bi bi-mortarboard-fill me-2 text-primary"></i>Academic Curriculum & Enrolled Subjects</span>
+                <span class="badge bg-secondary-subtle text-secondary border">
+                    <i class="bi bi-lock me-1"></i> Locked by Administrator
+                </span>
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <label class="form-label small text-muted fw-semibold">ID Number</label>
+                        <input type="text" class="form-control field-locked" value="<?= htmlspecialchars($student['IdNumber']) ?>" readonly>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label small text-muted fw-semibold">Course / Degree</label>
+                        <input type="text" class="form-control field-locked" value="<?= htmlspecialchars($student['Course']) ?>" readonly>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted fw-semibold">Year Level</label>
+                        <input type="text" class="form-control field-locked" value="<?= htmlspecialchars($student['Year']) ?>" readonly>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-bold mb-0 text-dark">
+                        <i class="bi bi-journal-check text-primary me-1"></i> Subject Grades (<?= count($studentSubjects) ?>)
+                    </h6>
+                    <?php if ($gradeCount > 0): ?>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2">
+                            General Average: <strong><?= $averageGrade ?></strong>
+                        </span>
+                    <?php endif; ?>
+                </div>
+
+                <div class="table-responsive border rounded-3 bg-white">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th>Subject Name</th>
+                                <th style="width: 140px;" class="text-center">Grade</th>
+                                <th style="width: 140px;" class="text-center">Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($studentSubjects as $idx => $item): 
+                                $isPassing = is_numeric($item['grade']) ? ((float)$item['grade'] <= 3.0 && (float)$item['grade'] >= 1.0) : true;
+                            ?>
+                                <tr>
+                                    <td class="text-muted fw-semibold"><?= $idx + 1 ?></td>
+                                    <td class="fw-bold text-secondary">
+                                        <i class="bi bi-book me-2 text-primary"></i><?= htmlspecialchars($item['subject']) ?>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fs-6">
+                                            <?= htmlspecialchars($item['grade']) ?>
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-light text-success border">
+                                            <i class="bi bi-check-circle-fill me-1"></i> <?= $isPassing ? 'Enrolled' : 'Review' ?>
+                                        </span>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
 

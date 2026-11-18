@@ -56,16 +56,18 @@ function autoMigrateTables(PDO $pdo): void {
             `IdNumber` VARCHAR(50) NOT NULL UNIQUE,
             `Course` VARCHAR(100) NOT NULL,
             `Year` VARCHAR(20) NOT NULL,
-            `Subject` VARCHAR(150) NOT NULL,
+            `Subject` TEXT NOT NULL,
             `Image` MEDIUMTEXT NULL,
-            `Grade` VARCHAR(10) NOT NULL,
+            `Grade` TEXT NOT NULL,
             `Password` VARCHAR(255) NOT NULL,
             `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     ");
 
-    // Upgrade Image column to MEDIUMTEXT if it was previously created as VARCHAR
+    // Upgrade columns to support multiple subjects/grades and Base64 images
     try {
+        $pdo->exec("ALTER TABLE `studinfo` MODIFY COLUMN `Subject` TEXT NOT NULL");
+        $pdo->exec("ALTER TABLE `studinfo` MODIFY COLUMN `Grade` TEXT NOT NULL");
         $pdo->exec("ALTER TABLE `studinfo` MODIFY COLUMN `Image` MEDIUMTEXT NULL");
     } catch (Exception $e) {}
 

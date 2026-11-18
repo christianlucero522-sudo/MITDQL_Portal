@@ -27,7 +27,7 @@ function requireStudent(string $redirectPath = '../index.php'): void {
 
 function setFlash(string $type, string $message): void {
     $_SESSION['flash'] = [
-        'type' => $type, // 'success', 'danger', 'warning', 'info'
+        'type' => $type,
         'message' => $message
     ];
 }
@@ -53,4 +53,43 @@ function verifyCsrfToken(?string $token): bool {
         return false;
     }
     return hash_equals($_SESSION['csrf_token'], $token);
+}
+
+/**
+ * Helper to parse single or multiple subjects and grades
+ */
+function parseSubjectsAndGrades(?string $subjectField, ?string $gradeField): array {
+    $decodedSub = !empty($subjectField) ? json_decode($subjectField, true) : null;
+    $decodedGrd = !empty($gradeField) ? json_decode($gradeField, true) : null;
+
+    $subjects = [];
+    $grades = [];
+
+    if (is_array($decodedSub)) {
+        $subjects = $decodedSub;
+        $grades = is_array($decodedGrd) ? $decodedGrd : [];
+    } elseif (!empty($subjectField)) {
+        if (strpos($subjectField, ',') !== false) {
+            $subjects = array_map('trim', explode(',', $subjectField));
+            $grades = array_map('trim', explode(',', $gradeField ?? ''));
+        } else {
+            $subjects = [$subjectField];
+            $grades = [$gradeField ?? 'N/A'];
+        }
+    }
+
+    $list = [];
+    $count = max(count($subjects), count($grades));
+    for ($i = 0; $i < $count; $i++) {
+        $s = $subjects[$i] ?? '';
+        $g = $grades[$i] ?? '';
+        if ($s !== '') {
+            $list[] = [
+                'subject' => $s,
+                'grade' => $g !== '' ? $g : 'N/A'
+            ];
+        }
+    }
+
+    return !empty($list) ? $list : [['subject' => 'No Subject Enrolled', 'grade' => 'N/A']];
 }

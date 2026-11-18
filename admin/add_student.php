@@ -14,8 +14,8 @@ $name = '';
 $idNumber = '';
 $course = '';
 $year = '';
-$subject = '';
-$grade = '';
+$subjects = [''];
+$grades = [''];
 $password = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -27,13 +27,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $idNumber = trim($_POST['id_number'] ?? '');
         $course = trim($_POST['course'] ?? '');
         $year = trim($_POST['year'] ?? '');
-        $subject = trim($_POST['subject'] ?? '');
-        $grade = trim($_POST['grade'] ?? '');
         $password = trim($_POST['password'] ?? '');
 
+        $rawSubjects = $_POST['subjects'] ?? [];
+        $rawGrades = $_POST['grades'] ?? [];
+
+        // Clean subject & grade arrays
+        $cleanedSubjects = [];
+        $cleanedGrades = [];
+        for ($i = 0; $i < count($rawSubjects); $i++) {
+            $s = trim($rawSubjects[$i] ?? '');
+            $g = trim($rawGrades[$i] ?? '');
+            if ($s !== '') {
+                $cleanedSubjects[] = $s;
+                $cleanedGrades[] = $g !== '' ? $g : 'N/A';
+            }
+        }
+
         // Validation
-        if (empty($name) || empty($idNumber) || empty($course) || empty($year) || empty($subject) || empty($grade)) {
-            $error = "Please fill in all required fields (Name, ID Number, Course, Year, Subject, Grade).";
+        if (empty($name) || empty($idNumber) || empty($course) || empty($year) || empty($cleanedSubjects)) {
+            $error = "Please fill in all required fields and provide at least one Subject and Grade.";
         } else {
             // Check for duplicate IdNumber
             $checkStmt = $pdo->prepare("SELECT id FROM studinfo WHERE IdNumber = ?");
@@ -61,7 +74,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if (!in_array($mimeType, $allowedMimes)) {
                             $error = "Invalid file type. Allowed formats: JPG, PNG, WEBP, GIF.";
                         } else {
-                            // Store as Data URI (persists in MySQL and compatible with Vercel's read-only serverless filesystem)
                             $imgData = file_get_contents($file['tmp_name']);
                             $imageFilename = 'data:' . $mimeType . ';base64,' . base64_encode($imgData);
                         }
@@ -69,6 +81,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 if (empty($error)) {
+                    $subjectJson = json_encode($cleanedSubjects, JSON_UNESCAPED_UNICODE);
+                    $gradeJson = json_encode($cleanedGrades, JSON_UNESCAPED_UNICODE);
+
                     $insertStmt = $pdo->prepare("
                         INSERT INTO studinfo (`Name`, `IdNumber`, `Course`, `Year`, `Subject`, `Image`, `Grade`, `Password`)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -78,13 +93,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $idNumber,
                         $course,
                         $year,
-                        $subject,
+                        $subjectJson,
                         $imageFilename,
-                        $grade,
+                        $gradeJson,
                         $hashedPassword
                     ]);
 
-                    setFlash('success', "Student '" . htmlspecialchars($name) . "' has been added successfully! Initial password: " . htmlspecialchars($plainPassword));
+                    setFlash('success', "Student '" . htmlspecialchars($name) . "' has been added successfully with " . count($cleanedSubjects) . " subject(s)!");
                     header("Location: dashboard.php");
                     exit;
                 }
@@ -99,11 +114,11 @@ require_once __DIR__ . '/../includes/header.php';
 ?>
 
 <div class="row justify-content-center">
-    <div class="col-lg-8">
+    <div class="col-lg-9">
         <div class="d-flex align-items-center justify-content-between mb-4">
             <div>
                 <h3 class="fw-bold mb-1">Add New Student</h3>
-                <p class="text-muted mb-0">Input student information to insert into <code>studinfo</code> table.</p>
+                <p class="text-muted mb-0">Register student details with multiple enrolled subjects and grades.</p>
             </div>
             <a href="dashboard.php" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
@@ -134,35 +149,58 @@ require_once __DIR__ . '/../includes/header.php';
                         <div class="col-md-6">
                             <label class="form-label fw-bold">ID Number <span class="text-danger">*</span></label>
                             <input type="text" name="id_number" class="form-control" placeholder="e.g. 2026-0002" value="<?= htmlspecialchars($idNumber) ?>" required>
-                            <div class="form-text">Must be unique for each student.</div>
                         </div>
                     </div>
 
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Course / Degree <span class="text-danger">*</span></label>
-                            <input type="text" name="course" class="form-control" placeholder="e.g. BS Computer Science" value="<?= htmlspecialchars($course) ?>" required>
+                            <input type="text" name="course" class="form-control" placeholder="e.g. BS Information Technology" value="<?= htmlspecialchars($course) ?>" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Year Level <span class="text-danger">*</span></label>
                             <select name="year" class="form-select" required>
-                                <option value="" disabled <?= empty($year) ? 'selected' : '' ?>>Select Year Level</option>
-                                <option value="1st Year" <?= $year === '1st Year' ? 'selected' : '' ?>>1st Year</option>
-                                <option value="2nd Year" <?= $year === '2nd Year' ? 'selected' : '' ?>>2nd Year</option>
-                                <option value="3rd Year" <?= $year === '3rd Year' ? 'selected' : '' ?>>3rd Year</option>
-                                <option value="4th Year" <?= $year === '4th Year' ? 'selected' : '' ?>>4th Year</option>
+                                <option value="" disabled selected>Select Year Level</option>
+                                <option value="1st Year">1st Year</option>
+                                <option value="2nd Year">2nd Year</option>
+                                <option value="3rd Year">3rd Year</option>
+                                <option value="4th Year">4th Year</option>
                             </select>
                         </div>
                     </div>
 
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-8">
-                            <label class="form-label fw-bold">Subject <span class="text-danger">*</span></label>
-                            <input type="text" name="subject" class="form-control" placeholder="e.g. Database Management 101" value="<?= htmlspecialchars($subject) ?>" required>
+                    <!-- Dynamic Multiple Subjects and Grades -->
+                    <div class="card bg-light border-0 mb-3 p-3 rounded-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label fw-bold mb-0 text-dark">
+                                <i class="bi bi-journal-bookmark-fill text-primary me-1"></i> Enrolled Subjects & Grades
+                            </label>
+                            <button type="button" class="btn btn-sm btn-outline-primary fw-semibold" id="addSubjectBtn">
+                                <i class="bi bi-plus-circle me-1"></i> Add Another Subject
+                            </button>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">Grade <span class="text-danger">*</span></label>
-                            <input type="text" name="grade" class="form-control" placeholder="e.g. 1.50 or 92" value="<?= htmlspecialchars($grade) ?>" required>
+                        <div class="small text-muted mb-3">You can add multiple subjects with their corresponding grades for this student.</div>
+
+                        <div id="subjectContainer">
+                            <div class="row g-2 mb-2 subject-row align-items-center">
+                                <div class="col-md-7">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text"><i class="bi bi-book"></i></span>
+                                        <input type="text" name="subjects[]" class="form-control" placeholder="Subject Name (e.g. Advanced Database Systems)" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text"><i class="bi bi-award"></i></span>
+                                        <input type="text" name="grades[]" class="form-control" placeholder="Grade (e.g. 1.25)" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-1 text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary remove-row-btn" disabled>
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -189,5 +227,66 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('subjectContainer');
+    const addBtn = document.getElementById('addSubjectBtn');
+
+    function updateRemoveButtons() {
+        const rows = container.querySelectorAll('.subject-row');
+        rows.forEach((row) => {
+            const btn = row.querySelector('.remove-row-btn');
+            if (rows.length === 1) {
+                btn.disabled = true;
+                btn.classList.add('btn-outline-secondary');
+                btn.classList.remove('btn-outline-danger');
+            } else {
+                btn.disabled = false;
+                btn.classList.remove('btn-outline-secondary');
+                btn.classList.add('btn-outline-danger');
+            }
+        });
+    }
+
+    addBtn.addEventListener('click', function() {
+        const newRow = document.createElement('div');
+        newRow.className = 'row g-2 mb-2 subject-row align-items-center';
+        newRow.innerHTML = `
+            <div class="col-md-7">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-book"></i></span>
+                    <input type="text" name="subjects[]" class="form-control" placeholder="Subject Name" required>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-award"></i></span>
+                    <input type="text" name="grades[]" class="form-control" placeholder="Grade" required>
+                </div>
+            </div>
+            <div class="col-md-1 text-end">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-row-btn">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        `;
+        container.appendChild(newRow);
+        updateRemoveButtons();
+    });
+
+    container.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-row-btn')) {
+            const rows = container.querySelectorAll('.subject-row');
+            if (rows.length > 1) {
+                e.target.closest('.subject-row').remove();
+                updateRemoveButtons();
+            }
+        }
+    });
+
+    updateRemoveButtons();
+});
+</script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
