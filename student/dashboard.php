@@ -48,6 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if (!in_array($mimeType, $allowedMimes)) {
                             $error = "Invalid file type. Only JPG, PNG, WEBP, and GIF images are permitted.";
                         } else {
+                            // Store as Data URI (persists in MySQL and compatible with Vercel's read-only serverless filesystem)
                             $imgData = file_get_contents($file['tmp_name']);
                             $newImageFilename = 'data:' . $mimeType . ';base64,' . base64_encode($imgData);
                         }
@@ -168,13 +169,13 @@ require_once __DIR__ . '/../includes/header.php';
                         </label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="bi bi-person"></i></span>
-                            <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($student['Name']) ?>" required>
+                            <input type="text" name="name" class="form-control form-control-lg" value="<?= htmlspecialchars($student['Name']) ?>" required>
                         </div>
                         <div class="form-text text-muted">Per institution policy, students are permitted to update their Name only.</div>
                     </div>
 
                     <div class="d-flex justify-content-end">
-                        <button type="submit" class="btn btn-primary px-4 fw-semibold">
+                        <button type="submit" class="btn btn-primary px-4 py-2 fw-semibold">
                             <i class="bi bi-check-lg me-1"></i> Save Changes (Name & Photo)
                         </button>
                     </div>
@@ -206,13 +207,17 @@ require_once __DIR__ . '/../includes/header.php';
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="fw-bold mb-0 text-dark">
                         <i class="bi bi-journal-check text-primary me-1"></i> Subject Grades (<?= count($studentSubjects) ?>)
                     </h6>
-                    <?php if ($gradeCount > 0): ?>
-                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2">
-                            General Average: <strong><?= $averageGrade ?></strong>
+                    <?php if ($gradeCount > 0): 
+                        $avgNum = (float)$averageGrade;
+                        $avgBadge = $avgNum >= 75 ? 'bg-success-subtle text-success border-success-subtle' : 'bg-danger-subtle text-danger border-danger-subtle';
+                        $avgStatus = $avgNum >= 75 ? 'Passed' : 'Failed';
+                    ?>
+                        <span class="badge <?= $avgBadge ?> border px-3 py-2 fs-6">
+                            General Average: <strong><?= $averageGrade ?></strong> (<?= $avgStatus ?>)
                         </span>
                     <?php endif; ?>
                 </div>
@@ -224,12 +229,12 @@ require_once __DIR__ . '/../includes/header.php';
                                 <th style="width: 50px;">#</th>
                                 <th>Subject Name</th>
                                 <th style="width: 140px;" class="text-center">Grade</th>
-                                <th style="width: 140px;" class="text-center">Remarks</th>
+                                <th style="width: 150px;" class="text-center">Remarks</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ($studentSubjects as $idx => $item): 
-                                $isPassing = is_numeric($item['grade']) ? ((float)$item['grade'] <= 3.0 && (float)$item['grade'] >= 1.0) : true;
+                                $eval = evaluateGrade($item['grade']);
                             ?>
                                 <tr>
                                     <td class="text-muted fw-semibold"><?= $idx + 1 ?></td>
@@ -237,13 +242,13 @@ require_once __DIR__ . '/../includes/header.php';
                                         <i class="bi bi-book me-2 text-primary"></i><?= htmlspecialchars($item['subject']) ?>
                                     </td>
                                     <td class="text-center">
-                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fs-6">
-                                            <?= htmlspecialchars($item['grade']) ?>
+                                        <span class="badge <?= $eval['badge_class'] ?> px-3 py-2 fs-6 fw-bold">
+                                            <?= htmlspecialchars($eval['display']) ?>
                                         </span>
                                     </td>
                                     <td class="text-center">
-                                        <span class="badge bg-light text-success border">
-                                            <i class="bi bi-check-circle-fill me-1"></i> <?= $isPassing ? 'Enrolled' : 'Review' ?>
+                                        <span class="badge <?= $eval['remarks_badge'] ?> px-3 py-2 fs-6 fw-semibold">
+                                            <i class="bi <?= $eval['icon'] ?> me-1"></i><?= htmlspecialchars($eval['remarks']) ?>
                                         </span>
                                     </td>
                                 </tr>

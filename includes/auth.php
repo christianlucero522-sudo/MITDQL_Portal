@@ -74,7 +74,7 @@ function parseSubjectsAndGrades(?string $subjectField, ?string $gradeField): arr
             $grades = array_map('trim', explode(',', $gradeField ?? ''));
         } else {
             $subjects = [$subjectField];
-            $grades = [$gradeField ?? 'N/A'];
+            $grades = [$gradeField ?? ''];
         }
     }
 
@@ -86,10 +86,48 @@ function parseSubjectsAndGrades(?string $subjectField, ?string $gradeField): arr
         if ($s !== '') {
             $list[] = [
                 'subject' => $s,
-                'grade' => $g !== '' ? $g : 'N/A'
+                'grade' => $g
             ];
         }
     }
 
-    return !empty($list) ? $list : [['subject' => 'No Subject Enrolled', 'grade' => 'N/A']];
+    return !empty($list) ? $list : [['subject' => 'No Subject Enrolled', 'grade' => '']];
+}
+
+/**
+ * Grade Evaluation Helper
+ * >= 75: Green & Passed
+ * < 75: Red & Failed
+ * Empty / N/A: Gray & No Grade
+ */
+function evaluateGrade($grade): array {
+    $trim = trim((string)$grade);
+    if ($trim === '' || strtoupper($trim) === 'N/A' || !is_numeric($trim)) {
+        return [
+            'display' => $trim !== '' ? $trim : 'No Grade',
+            'remarks' => 'No Grade',
+            'badge_class' => 'bg-secondary-subtle text-secondary border border-secondary-subtle',
+            'remarks_badge' => 'bg-light text-secondary border border-secondary-subtle',
+            'icon' => 'bi-dash-circle'
+        ];
+    }
+
+    $num = (float)$trim;
+    if ($num >= 75) {
+        return [
+            'display' => $trim,
+            'remarks' => 'Passed',
+            'badge_class' => 'bg-success-subtle text-success border border-success-subtle',
+            'remarks_badge' => 'bg-success-subtle text-success border border-success-subtle',
+            'icon' => 'bi-check-circle-fill text-success'
+        ];
+    } else {
+        return [
+            'display' => $trim,
+            'remarks' => 'Failed',
+            'badge_class' => 'bg-danger-subtle text-danger border border-danger-subtle',
+            'remarks_badge' => 'bg-danger-subtle text-danger border border-danger-subtle',
+            'icon' => 'bi-x-circle-fill text-danger'
+        ];
+    }
 }

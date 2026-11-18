@@ -85,7 +85,7 @@ require_once __DIR__ . '/../includes/header.php';
                             <th>Course</th>
                             <th>Year</th>
                             <th>Enrolled Subjects</th>
-                            <th>Grades</th>
+                            <th>Grades & Remarks</th>
                             <th class="text-end pe-4">Actions</th>
                         </tr>
                     </thead>
@@ -117,16 +117,21 @@ require_once __DIR__ . '/../includes/header.php';
                                 <td><?= htmlspecialchars($stud['Year']) ?></td>
                                 <td>
                                     <?php foreach ($subList as $sItem): ?>
-                                        <div class="small text-truncate" style="max-width: 200px;">
+                                        <div class="small text-truncate mb-1" style="max-width: 200px;">
                                             <i class="bi bi-book text-muted me-1"></i><?= htmlspecialchars($sItem['subject']) ?>
                                         </div>
                                     <?php endforeach; ?>
                                 </td>
                                 <td>
-                                    <?php foreach ($subList as $sItem): ?>
-                                        <div class="mb-1">
-                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0" style="font-size: 0.8rem;">
-                                                <?= htmlspecialchars($sItem['grade']) ?>
+                                    <?php foreach ($subList as $sItem): 
+                                        $eval = evaluateGrade($sItem['grade']);
+                                    ?>
+                                        <div class="mb-1 d-flex align-items-center gap-1">
+                                            <span class="badge <?= $eval['badge_class'] ?> px-2 py-0 fw-bold" style="font-size: 0.8rem;">
+                                                <?= htmlspecialchars($eval['display']) ?>
+                                            </span>
+                                            <span class="badge <?= $eval['remarks_badge'] ?> px-2 py-0" style="font-size: 0.75rem;">
+                                                <?= htmlspecialchars($eval['remarks']) ?>
                                             </span>
                                         </div>
                                     <?php endforeach; ?>
